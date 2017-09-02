@@ -18,7 +18,7 @@ T = TypeVar("T")
 class ChampionGG(DataSource):
     def __init__(self, api_key: str, http_client: HTTPClient = None) -> None:
         if not api_key.startswith("RGAPI"):
-            api_key = os.environ[api_key]
+            api_key = os.environ.get(api_key, None)
         self._key = api_key
 
         if http_client is None:
