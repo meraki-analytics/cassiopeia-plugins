@@ -5,7 +5,7 @@ from datapipelines import DataSource, PipelineContext, Query, NotFoundError
 from merakicommons.ratelimits import FixedWindowRateLimiter, MultiRateLimiter
 
 from .dto import ChampionGGListDto
-from ...datastores.common import HTTPClient, HTTPError
+from cassiopeia.datastores.common import HTTPClient, HTTPError
 
 try:
     import ujson as json

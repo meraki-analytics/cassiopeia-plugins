@@ -6,10 +6,11 @@ from merakicommons.cache import lazy_property
 
 from datapipelines import NotFoundError
 
-from ... import configuration
+from cassiopeia import configuration
+from cassiopeia.data import Region, Role, Tier, Patch
+from cassiopeia.core.common import CoreData, CassiopeiaGhost, DataObjectList
+
 from .dto import ChampionGGDto, ChampionGGListDto
-from ...data import Region, Role, Tier, Patch
-from ...core.common import CoreData, CassiopeiaGhost, DataObjectList
 
 
 class ChampionGGListData(DataObjectList):

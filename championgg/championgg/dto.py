@@ -1,4 +1,4 @@
-from ...core.common import DtoObject
+from cassiopeia.dto.common import DtoObject
 
 
 class ChampionGGListDto(DtoObject):
