@@ -129,11 +129,11 @@ class ChampionGGStats(CassiopeiaGhost):
             included_data = "kda,damage,minions,wards,overallPerformanceScore,goldEarned"
         if elo is None:
             elo = "PLATINUM_DIAMOND_MASTER_CHALLENGER"
-        kwargs = {"region": region, "id": id, "patch": patch._patch, "elo": elo, "included_data": included_data}
+        kwargs = {"region": region, "id": id, "patch": patch.name, "elo": elo, "included_data": included_data}
         super().__init__(**kwargs)
 
     def __get_query__(self):
-        return {"patch": self.patch._patch, "includedData": ",".join(self.included_data), "elo": "_".join(self.elo)}
+        return {"patch": self.patch.name, "includedData": ",".join(self.included_data), "elo": "_".join(self.elo)}
 
     def __load_hook__(self, load_group: ChampionGGData, data: ChampionGGListData) -> None:
         def find_matching_attribute(datalist, attrname, attrvalue):

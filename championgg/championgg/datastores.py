@@ -1,11 +1,13 @@
 from typing import Type, TypeVar, MutableMapping, Any, Iterable
 import os
 
-from datapipelines import DataSource, PipelineContext, Query, NotFoundError
+from datapipelines import DataSource, PipelineContext, Query, NotFoundError, validate_query
 from merakicommons.ratelimits import FixedWindowRateLimiter, MultiRateLimiter
 
-from .dto import ChampionGGListDto
 from cassiopeia.datastores.common import HTTPClient, HTTPError
+from cassiopeia.datastores.uniquekeys import convert_region_to_platform
+
+from .dto import ChampionGGListDto
 
 try:
     import ujson as json
@@ -52,8 +54,8 @@ class ChampionGG(DataSource):
         can_have("limit").with_default(lambda *args, **kwargs: 300, supplies_type=int)
 
     @get.register(ChampionGGListDto)
+    @validate_query(_validate_get_gg_champion_list_query, convert_region_to_platform)
     def get_gg_champion_list(self, query: MutableMapping[str, Any], context: PipelineContext = None) -> ChampionGGListDto:
-        self._validate_get_gg_champion_list_query(query, context)
         elos = ["BRONZE", "SILVER", "GOLD", "PLATINUM", "PLATINUM_DIAMOND_MASTER_CHALLENGER"]
         if not query["elo"] in elos:
             raise ValueError("`elo` must be one of {}".format(elos))
