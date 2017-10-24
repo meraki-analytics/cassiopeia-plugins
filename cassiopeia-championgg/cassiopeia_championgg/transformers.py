@@ -21,19 +21,16 @@ class ChampionGGTransformer(DataTransformer):
     @transform.register(ChampionGGDto, ChampionGGData)
     def champion_gg_dto_to_data(self, value: ChampionGGDto, context: PipelineContext = None) -> ChampionGGData:
         data = deepcopy(value)
-        id = data[0]["championId"]
+        id = data["championId"]
         reformatted = defaultdict(dict)
-        for item in data:
-            assert item["championId"] == id
-            item.pop("championId")
-            role = item.pop("role")
-            elo = item.pop("elo")
-            patch = item.pop("patch")
-            for field in item.keys():
-                reformatted[field][role] = item[field]
-            reformatted["championId"] = id
-            reformatted["elo"] = elo
-            reformatted["patch"] = patch
+        role = data.pop("role")
+        elo = data.pop("elo")
+        patch = data.pop("patch")
+        for field in data.keys():
+            reformatted[field][role] = data[field]
+        reformatted["championId"] = id
+        reformatted["elo"] = elo
+        reformatted["patch"] = patch
         return ChampionGGData.from_dto(reformatted)
 
     @transform.register(ChampionGGListDto, ChampionGGListData)

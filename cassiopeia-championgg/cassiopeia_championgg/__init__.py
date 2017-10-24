@@ -9,7 +9,7 @@ from .transformers import ChampionGGTransformer
 
 __transformers__ = [ChampionGGTransformer()]
 
-# Monkey patck in the Champion.championgg object
+# Monkey patch in the Champion.championgg object
 
 def championgg(self) -> ChampionGGStats:
     """The champion.gg data for this champion."""

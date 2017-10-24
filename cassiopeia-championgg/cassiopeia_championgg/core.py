@@ -117,7 +117,6 @@ class ChampionGGData(CoreData):
 
 class ChampionGGStats(CassiopeiaGhost):
     _data_types = {ChampionGGData}
-    _load_types = {ChampionGGData: ChampionGGListData}
 
     def __init__(self, *, id: int, patch: Patch, included_data: Set[str] = None, elo: Set[str] = None, region: Union[Region, str] = None):
         if region is None:
@@ -133,16 +132,7 @@ class ChampionGGStats(CassiopeiaGhost):
         super().__init__(**kwargs)
 
     def __get_query__(self):
-        return {"patch": self.patch.name, "includedData": ",".join(self.included_data), "elo": "_".join(self.elo)}
-
-    def __load_hook__(self, load_group: ChampionGGData, data: ChampionGGListData) -> None:
-        def find_matching_attribute(datalist, attrname, attrvalue):
-            for item in datalist:
-                if getattr(item, attrname, None) == attrvalue:
-                    return item
-            raise NotFoundError("Could not find `{}={}` in {}".format(attrname, attrvalue, datalist))
-        data = find_matching_attribute(data, "id", self.id)
-        super().__load_hook__(load_group, data)
+        return {"id": self.id, "patch": self.patch.name, "includedData": ",".join(self.included_data), "elo": "_".join(self.elo)}
 
     @lazy_property
     def region(self) -> Region:

@@ -1,5 +1,6 @@
 from typing import Type, TypeVar, MutableMapping, Any, Iterable
 import os
+import copy
 
 from datapipelines import DataSource, PipelineContext, Query, NotFoundError, validate_query
 from merakicommons.ratelimits import FixedWindowRateLimiter, MultiRateLimiter
@@ -7,7 +8,8 @@ from merakicommons.ratelimits import FixedWindowRateLimiter, MultiRateLimiter
 from cassiopeia.datastores.common import HTTPClient, HTTPError
 from cassiopeia.datastores.uniquekeys import convert_region_to_platform
 
-from .dto import ChampionGGListDto
+from .dto import ChampionGGListDto, ChampionGGDto
+from .core import ChampionGGStats
 
 try:
     import ujson as json
@@ -88,3 +90,46 @@ class ChampionGG(DataSource):
             result = ChampionGGListDto({"data": data})
             self._cached_data[(self.get_gg_champion_list, query["patch"])] = result
             return result
+
+    _validate_get_gg_champion_query = Query. \
+        has("id").as_(int).also. \
+        has("patch").as_(str).also. \
+        can_have("includedData").with_default(lambda *args, **kwargs: "kda,damage,minions,wards,overallPerformanceScore,goldEarned", supplies_type=str).also. \
+        can_have("elo").with_default(lambda *args, **kwargs: "PLATINUM_DIAMOND_MASTER_CHALLENGER", supplies_type=str).also. \
+        can_have("limit").with_default(lambda *args, **kwargs: 300, supplies_type=int)
+
+    @get.register(ChampionGGDto)
+    @validate_query(_validate_get_gg_champion_query, convert_region_to_platform)
+    def get_item(self, query: MutableMapping[str, Any], context: PipelineContext = None) -> ChampionGGDto:
+        id = query.pop("id")
+
+        items_query = copy.deepcopy(query)
+        if "id" in items_query:
+            items_query.pop("id")
+        if "name" in items_query:
+            items_query.pop("name")
+        ggs = context[context.Keys.PIPELINE].get(ChampionGGListDto, query=items_query)
+
+        def find_matching_attribute(list_of_dtos, attrname, attrvalue):
+            for dto in list_of_dtos:
+                if dto.get(attrname, None) == attrvalue:
+                    return dto
+
+        gg = find_matching_attribute(ggs["data"], "championId", id)
+        if gg is None:
+            raise NotFoundError
+        return ChampionGGDto(gg)
+
+
+    @staticmethod
+    def create_ghost(cls: Type[T], kwargs) -> T:
+        return type.__call__(cls, **kwargs)
+
+    _validate_get_gg_champion_stats_query = Query. \
+        has("id").as_(int)
+
+    @get.register(ChampionGGStats)
+    @validate_query(_validate_get_gg_champion_stats_query, convert_region_to_platform)
+    def get_champion(self, query: MutableMapping[str, Any], context: PipelineContext = None) -> ChampionGGStats:
+        query["region"] = query.pop("platform").region
+        return ChampionGG.create_ghost(ChampionGGStats, query)
