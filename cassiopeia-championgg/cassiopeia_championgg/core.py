@@ -148,7 +148,7 @@ class ChampionGGStats(CassiopeiaGhost):
 
     @property
     def patch(self) -> Patch:
-        return Patch.from_str(self._data[ChampionGGData].patch)
+        return Patch.from_str(self._data[ChampionGGData].patch, region=self.region)
 
     @CassiopeiaGhost.property(ChampionGGData)
     @ghost_load_on(KeyError)
