@@ -8,14 +8,14 @@ from datapipelines import NotFoundError
 
 from cassiopeia import configuration
 from cassiopeia.data import Region, Role, Tier, Patch
-from cassiopeia.core.common import CoreData, CassiopeiaGhost, DataObjectList
+from cassiopeia.core.common import CoreData, CassiopeiaGhost, CoreDataList
 
 from .dto import ChampionGGDto, ChampionGGListDto
 
 
-class ChampionGGListData(DataObjectList):
+class ChampionGGListData(CoreDataList):
     _dto_type = ChampionGGListDto
-    _renamed = {}
+    _renamed = {"included_data": "includedData"}
 
     @property
     def region(self) -> str:
@@ -24,95 +24,17 @@ class ChampionGGListData(DataObjectList):
 
 class ChampionGGData(CoreData):
     _dto_type = ChampionGGDto
-    _renamed = {"included_data": "champData", "win_rate": "winRate", "id": "championId", "play_rate": "playRate", "games_played": "gamesPlayed", "percent_role_played": "percentRolePlayed", "ban_rate": "banRate", "damage_composition": "damageComposition", "total_damage_taken": "totalDamageTaken", "wards_killed": "wardsKilled", "neutralMinionsKilledTeamJungle": "neutralMinionsKilledTeamJungle", "performance_score": "overallPerformanceScore", "neutralMinionsKilledEnemyJungle": "neutralMinionsKilledEnemyJungle", "gold_earned": "goldEarned", "wards_placed": "wardPlaced", "minions_killed": "minionsKilled", "total_healed": "totalHeal"}
+    _renamed = {"championId": "id", "overallPerformanceScore": "performanceScore", "percentRolePlayed": "playRateByRole", "totalHeal": "totalHealed", "neutralMinionsKilledTeamJungle": "neutralMinionsKilledInTeamJungle", "neutralMinionsKilledEnemyJungle": "neutralMinionsKilledInEnemyJungle", "included_data": "includedData"}
 
-    @property
-    def region(self) -> str:
-        return self._dto["region"]
-
-    @property
-    def elo(self) -> str:
-        return self._dto["elo"].split(",")
-
-    @property
-    def included_data(self) -> str:
-        return self._dto["champData"].split(",")
-
-    @property
-    def patch(self) -> str:
-        return self._dto["patch"]
-
-    @property
-    def id(self) -> str:
-        return self._dto["championId"]
-
-    @property
-    def win_rate(self) -> str:
-        return self._dto["winRate"]
-
-    @property
-    def play_rate(self) -> str:
-        return self._dto["playRate"]
-
-    @property
-    def play_rate_by_role(self) -> str:
-        return self._dto["percentRolePlayed"]
-
-    @property
-    def ban_rate(self) -> str:
-        return self._dto["banRate"]
-
-    @property
-    def games_played(self) -> str:
-        return self._dto["gamesPlayed"]
-
-    @property
-    def damage_composition(self) -> str:
-        return self._dto["damageComposition"]
-
-    @property
-    def kills(self) -> str:
-        return self._dto["kills"]
-
-    @property
-    def total_damage_taken(self) -> str:
-        return self._dto["totalDamageTaken"]
-
-    @property
-    def wards_killed(self) -> str:
-        return self._dto["wardsKilled"]
-
-    @property
-    def neutral_minions_killed_in_team_jungle(self) -> str:
-        return self._dto["neutralMinionsKilledTeamJungle"]
-
-    @property
-    def assists(self) -> str:
-        return self._dto["assists"]
-
-    @property
-    def performance_score(self) -> str:
-        return self._dto["overallPerformanceScore"]
-
-    @property
-    def neutral_minions_killed_in_enemy_jungle(self) -> str:
-        return self._dto["neutralMinionsKilledEnemyJungle"]
-
-    @property
-    def gold_earned(self) -> str:
-        return self._dto["goldEarned"]
-
-    @property
-    def deaths(self) -> str:
-        return self._dto["deaths"]
-
-    @property
-    def minions_killed(self) -> str:
-        return self._dto["minionsKilled"]
-
-    @property
-    def total_healed(self) -> str:
-        return self._dto["totalHeal"]
+    def __call__(self, **kwargs):
+        if "elo" in kwargs:
+            self.elo = kwargs.pop("elo").split(",")
+        if "champData" in kwargs:
+            self.includedData = kwargs.pop("champData").split(",")
+        if "included_data" in kwargs:
+            self.includedData = kwargs.pop("included_data").split(",")
+        super().__call__(**kwargs)
+        return self
 
 
 class ChampionGGStats(CassiopeiaGhost):
@@ -140,7 +62,7 @@ class ChampionGGStats(CassiopeiaGhost):
 
     @property
     def included_data(self) -> Set[str]:
-        return self._data[ChampionGGData].included_data
+        return self._data[ChampionGGData].includedData
 
     @property
     def elo(self) -> Set[str]:
@@ -151,97 +73,97 @@ class ChampionGGStats(CassiopeiaGhost):
         return Patch.from_str(self._data[ChampionGGData].patch, region=self.region)
 
     @CassiopeiaGhost.property(ChampionGGData)
-    @ghost_load_on(KeyError)
+    @ghost_load_on(AttributeError)
     def id(self) -> int:
         return self._data[ChampionGGData].id
 
     @CassiopeiaGhost.property(ChampionGGData)
-    @ghost_load_on(KeyError)
+    @ghost_load_on(AttributeError)
     def win_rate(self) -> SearchableDictionary:
-        return SearchableDictionary({Role(role): value for role, value in self._data[ChampionGGData].win_rate.items()})
+        return SearchableDictionary({Role(role): value for role, value in self._data[ChampionGGData].winRate.items()})
 
     @CassiopeiaGhost.property(ChampionGGData)
-    @ghost_load_on(KeyError)
+    @ghost_load_on(AttributeError)
     def play_rate(self) -> SearchableDictionary:
-        return SearchableDictionary({Role(role): value for role, value in self._data[ChampionGGData].play_rate.items()})
+        return SearchableDictionary({Role(role): value for role, value in self._data[ChampionGGData].playRate.items()})
 
     @CassiopeiaGhost.property(ChampionGGData)
-    @ghost_load_on(KeyError)
+    @ghost_load_on(AttributeError)
     def play_rate_by_role(self) -> SearchableDictionary:
-        return SearchableDictionary({Role(role): value for role, value in self._data[ChampionGGData].play_rate_by_role.items()})
+        return SearchableDictionary({Role(role): value for role, value in self._data[ChampionGGData].playRateByRole.items()})
 
     @CassiopeiaGhost.property(ChampionGGData)
-    @ghost_load_on(KeyError)
+    @ghost_load_on(AttributeError)
     def ban_rate(self) -> SearchableDictionary:
-        return SearchableDictionary({Role(role): value for role, value in self._data[ChampionGGData].ban_rate.items()})
+        return SearchableDictionary({Role(role): value for role, value in self._data[ChampionGGData].banRate.items()})
 
     @CassiopeiaGhost.property(ChampionGGData)
-    @ghost_load_on(KeyError)
+    @ghost_load_on(AttributeError)
     def games_played(self) -> SearchableDictionary:
-        return SearchableDictionary({Role(role): value for role, value in self._data[ChampionGGData].games_played.items()})
+        return SearchableDictionary({Role(role): value for role, value in self._data[ChampionGGData].gamesPlayed.items()})
 
     @CassiopeiaGhost.property(ChampionGGData)
-    @ghost_load_on(KeyError)
+    @ghost_load_on(AttributeError)
     def damage_composition(self) -> SearchableDictionary:
-        return SearchableDictionary({Role(role): value for role, value in self._data[ChampionGGData].damage_composition.items()})
+        return SearchableDictionary({Role(role): value for role, value in self._data[ChampionGGData].damageComposition.items()})
 
     @CassiopeiaGhost.property(ChampionGGData)
-    @ghost_load_on(KeyError)
+    @ghost_load_on(AttributeError)
     def kills(self) -> SearchableDictionary:
         return SearchableDictionary({Role(role): value for role, value in self._data[ChampionGGData].kills.items()})
 
     @CassiopeiaGhost.property(ChampionGGData)
-    @ghost_load_on(KeyError)
+    @ghost_load_on(AttributeError)
     def total_damage_taken(self) -> SearchableDictionary:
-        return SearchableDictionary({Role(role): value for role, value in self._data[ChampionGGData].total_damage_taken.items()})
+        return SearchableDictionary({Role(role): value for role, value in self._data[ChampionGGData].totalDamageTaken.items()})
 
     @CassiopeiaGhost.property(ChampionGGData)
-    @ghost_load_on(KeyError)
+    @ghost_load_on(AttributeError)
     def wards_killed(self) -> SearchableDictionary:
-        return SearchableDictionary({Role(role): value for role, value in self._data[ChampionGGData].wards_killed.items()})
+        return SearchableDictionary({Role(role): value for role, value in self._data[ChampionGGData].wardsKilled.items()})
 
     @CassiopeiaGhost.property(ChampionGGData)
-    @ghost_load_on(KeyError)
+    @ghost_load_on(AttributeError)
     def neutral_minions_killed_in_team_jungle(self) -> SearchableDictionary:
-        return SearchableDictionary({Role(role): value for role, value in self._data[ChampionGGData].neutral_minions_killed_in_team_jungle.items()})
+        return SearchableDictionary({Role(role): value for role, value in self._data[ChampionGGData].neutralMinionsKilledInTeamJungle.items()})
 
     @CassiopeiaGhost.property(ChampionGGData)
-    @ghost_load_on(KeyError)
+    @ghost_load_on(AttributeError)
     def assists(self) -> SearchableDictionary:
         return SearchableDictionary({Role(role): value for role, value in self._data[ChampionGGData].assists.items()})
 
     @CassiopeiaGhost.property(ChampionGGData)
-    @ghost_load_on(KeyError)
+    @ghost_load_on(AttributeError)
     def performance_score(self) -> SearchableDictionary:
-        return SearchableDictionary({Role(role): value for role, value in self._data[ChampionGGData].performance_score.items()})
+        return SearchableDictionary({Role(role): value for role, value in self._data[ChampionGGData].performanceScore.items()})
 
     @CassiopeiaGhost.property(ChampionGGData)
-    @ghost_load_on(KeyError)
+    @ghost_load_on(AttributeError)
     def neutral_minions_killed_in_enemy_jungle(self) -> SearchableDictionary:
-        return SearchableDictionary({Role(role): value for role, value in self._data[ChampionGGData].neutral_minions_killed_in_enemy_jungle.items()})
+        return SearchableDictionary({Role(role): value for role, value in self._data[ChampionGGData].neutralMinionsKilledInEnemyJungle.items()})
 
     @CassiopeiaGhost.property(ChampionGGData)
-    @ghost_load_on(KeyError)
+    @ghost_load_on(AttributeError)
     def gold_earned(self) -> SearchableDictionary:
-        return SearchableDictionary({Role(role): value for role, value in self._data[ChampionGGData].gold_earned.items()})
+        return SearchableDictionary({Role(role): value for role, value in self._data[ChampionGGData].goldEarned.items()})
 
     @CassiopeiaGhost.property(ChampionGGData)
-    @ghost_load_on(KeyError)
+    @ghost_load_on(AttributeError)
     def deaths(self) -> SearchableDictionary:
         return SearchableDictionary({Role(role): value for role, value in self._data[ChampionGGData].deaths.items()})
 
     @CassiopeiaGhost.property(ChampionGGData)
-    @ghost_load_on(KeyError)
+    @ghost_load_on(AttributeError)
     def minions_killed(self) -> SearchableDictionary:
-        return SearchableDictionary({Role(role): value for role, value in self._data[ChampionGGData].minions_killed.items()})
+        return SearchableDictionary({Role(role): value for role, value in self._data[ChampionGGData].minionsKilled.items()})
 
     @CassiopeiaGhost.property(ChampionGGData)
-    @ghost_load_on(KeyError)
+    @ghost_load_on(AttributeError)
     def total_healed(self) -> SearchableDictionary:
-        return SearchableDictionary({Role(role): value for role, value in self._data[ChampionGGData].total_healed.items()})
+        return SearchableDictionary({Role(role): value for role, value in self._data[ChampionGGData].totalHealed.items()})
 
     @CassiopeiaGhost.property(ChampionGGData)
-    @ghost_load_on(KeyError)
+    @ghost_load_on(AttributeError)
     def championgg_metadata(self) -> dict:
         return {
             "elo": [Tier(tier) for tier in self._data[ChampionGGData].elo],

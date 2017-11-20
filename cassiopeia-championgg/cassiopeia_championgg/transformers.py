@@ -31,7 +31,7 @@ class ChampionGGTransformer(DataTransformer):
         reformatted["championId"] = id
         reformatted["elo"] = elo
         reformatted["patch"] = patch
-        return ChampionGGData.from_dto(reformatted)
+        return ChampionGGData(**reformatted)
 
     @transform.register(ChampionGGListDto, ChampionGGListData)
     def champion_gg_list_dto_to_data(self, value: ChampionGGListDto, context: PipelineContext = None) -> ChampionGGListData:
