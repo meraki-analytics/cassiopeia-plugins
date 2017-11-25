@@ -1,8 +1,8 @@
 from merakicommons.cache import lazy_property
 
-from cassiopeia.data import Patch
 from cassiopeia.core.common import get_latest_version
 from cassiopeia.core.staticdata.champion import Champion
+from cassiopeia.core.patch import Patch
 from .core import ChampionGGStats
 from .datastores import ChampionGG
 from .transformers import ChampionGGTransformer

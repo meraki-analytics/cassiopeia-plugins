@@ -7,8 +7,9 @@ from merakicommons.cache import lazy_property
 from datapipelines import NotFoundError
 
 from cassiopeia import configuration
-from cassiopeia.data import Region, Role, Tier, Patch
+from cassiopeia.data import Region, Role, Tier
 from cassiopeia.core.common import CoreData, CassiopeiaGhost, CoreDataList
+from cassiopeia.core.patch import Patch
 
 from .dto import ChampionGGDto, ChampionGGListDto
 

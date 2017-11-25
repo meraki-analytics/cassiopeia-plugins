@@ -89,7 +89,12 @@ class ChampionGG(DataSource):
 
             for datum in data:
                 datum.pop("_id")
-            result = ChampionGGListDto({"data": data})
+            data = {"data": data}
+            data["patch"] = query["patch"]
+            data["includedData"] = query["includedData"]
+            data["elo"] = query["elo"]
+            data["limit"] = query["limit"]
+            result = ChampionGGListDto(data)
             self._cached_data[(self.get_gg_champion_list, query["patch"])] = result
             return result
 
