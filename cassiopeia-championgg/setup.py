@@ -11,7 +11,7 @@ install_requires = [
 
 setup(
     name="cassiopeia-championgg",
-    version="1.0.2",
+    version="1.0.3",
     author="Jason Maldonis; Rob Rua",
     author_email="team@merakianalytics.com",
     url="https://github.com/meraki-analytics/cassiopeia-plugins/tree/master/cassiopeia-championgg",
