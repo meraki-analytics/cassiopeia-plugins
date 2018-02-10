@@ -53,6 +53,7 @@ class ChampionGGStats(CassiopeiaGhost):
             elo = "PLATINUM_DIAMOND_MASTER_CHALLENGER"
         kwargs = {"region": region, "id": id, "patch": patch.name, "elo": elo, "included_data": included_data}
         super().__init__(**kwargs)
+        self._patch = patch
 
     def __get_query__(self):
         return {"id": self.id, "patch": self.patch.name, "includedData": ",".join(self.included_data), "elo": "_".join(self.elo)}
@@ -71,7 +72,7 @@ class ChampionGGStats(CassiopeiaGhost):
 
     @property
     def patch(self) -> Patch:
-        return Patch.from_str(self._data[ChampionGGData].patch, region=self.region)
+        return self._patch
 
     @CassiopeiaGhost.property(ChampionGGData)
     @ghost_load_on(AttributeError)

@@ -16,7 +16,12 @@ def championgg(self) -> ChampionGGStats:
     latest_version = get_latest_version(self.region, endpoint="champion")
     if self.version != latest_version:
         raise ValueError("Can only get champion.gg data for champions on the most recent version.")
-    return ChampionGGStats(id=self.id, patch=Patch.from_str(".".join(self.version.split(".")[:-1]), region=self.region), region=self.region)
+    patch_name = ".".join(self.version.split(".")[:-1])
+    try:
+        patch = Patch.from_str(patch_name, region=self.region)
+    except ValueError:
+        patch = Patch(region=self.region, season=None, name=patch_name, start=None, end=None)
+    return ChampionGGStats(id=self.id, patch=patch, region=self.region)
 
 championgg = lazy_property(championgg)
 
