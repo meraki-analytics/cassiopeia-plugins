@@ -1,11 +1,11 @@
-from typing import Type, TypeVar
+from typing import Type, TypeVar, List
 from copy import deepcopy
 from collections import defaultdict
 
 from datapipelines import DataTransformer, PipelineContext
 
-from .core import ChampionGGData, ChampionGGListData
-from .dto import ChampionGGDto, ChampionGGListDto
+from .core import ChampionGGStatsData, ChampionGGStatsListData, ChampionGGMatchupData, ChampionGGMatchupListData, ChampionGGMatchups, ChampionGGMatchup
+from .dto import ChampionGGStatsDto, ChampionGGStatsListDto, ChampionGGMatchupDto, ChampionGGMatchupListDto
 
 T = TypeVar("T")
 F = TypeVar("F")
@@ -18,27 +18,72 @@ class ChampionGGTransformer(DataTransformer):
 
     # Dto to Data
 
-    @transform.register(ChampionGGDto, ChampionGGData)
-    def champion_gg_dto_to_data(self, value: ChampionGGDto, context: PipelineContext = None) -> ChampionGGData:
+    @transform.register(ChampionGGStatsDto, ChampionGGStatsData)
+    def champion_gg_dto_to_data(self, value: List[ChampionGGStatsDto], context: PipelineContext = None) -> ChampionGGStatsData:
         data = deepcopy(value)
-        id = data["championId"]
-        reformatted = defaultdict(dict)
-        role = data.pop("role")
-        elo = data.pop("elo")
-        patch = data.pop("patch")
-        for field in data.keys():
-            reformatted[field][role] = data[field]
-        reformatted["championId"] = id
-        reformatted["elo"] = elo
-        reformatted["patch"] = patch
-        return ChampionGGData(**reformatted)
+        return ChampionGGStatsData(**data)
 
-    @transform.register(ChampionGGListDto, ChampionGGListData)
-    def champion_gg_list_dto_to_data(self, value: ChampionGGListDto, context: PipelineContext = None) -> ChampionGGListData:
+    @transform.register(ChampionGGStatsListDto, ChampionGGStatsListData)
+    def champion_gg_list_dto_to_data(self, value: ChampionGGStatsListDto, context: PipelineContext = None) -> ChampionGGStatsListData:
+        raise NotImplemented  # See functionality in datastores.py
         data = deepcopy(value)
-        reformatted =  {item["championId"]: [] for item in data["data"]}
+        reformatted =  defaultdict(list)
         for item in data["data"]:
             reformatted[item["championId"]].append(item)
-        data["data"] = [self.champion_gg_dto_to_data(item) for item in reformatted.values()]
-        data = data["data"]
-        return ChampionGGListData(data)
+
+        def transform_many_roles_per_champion_to_one_champion(ggs):
+            # This function is also in .datastores
+            reformatted = defaultdict(dict)
+            reformatted["championId"] = ggs[0]["championId"]
+            reformatted["elo"] = ggs[0]["elo"]
+            reformatted["patch"] = ggs[0]["patch"]
+            for data in ggs:
+                role = data["role"]
+                for field in data.keys():
+                    if field in ["championId", "elo", "patch", "role"]:
+                        continue
+                    reformatted[field][role] = copy.deepcopy(data[field])
+            return reformatted
+
+        data = [self.champion_gg_dto_to_data(transform_many_roles_per_champion_to_one_champion(item)) for item in reformatted.values()]
+        return ChampionGGStatsListData(data)
+
+    @transform.register(ChampionGGMatchupDto, ChampionGGMatchupData)
+    def championgg_matchup_dto_to_data(self, value: ChampionGGMatchupDto, context: PipelineContext = None) -> ChampionGGMatchupData:
+        data = deepcopy(value)
+        return ChampionGGMatchupData(**data)
+
+    @transform.register(ChampionGGMatchupListDto, ChampionGGMatchupListData)
+    def championgg_matchup_list_dto_to_data(self, value: ChampionGGMatchupListDto, context: PipelineContext = None) -> ChampionGGMatchupListData:
+        data = value
+        result = ChampionGGMatchupListData([self.championgg_matchup_dto_to_data(d) for d in data["data"]],
+                                           patch=data["patch"],
+                                           elo=data["elo"],
+                                           id=data["id"],
+                                           role=data["role"])
+        return result
+
+    # Data to Core
+
+    @transform.register(ChampionGGMatchupData, ChampionGGMatchup)
+    def championgg_matchup_data_to_core(self, value: ChampionGGMatchupData, context: PipelineContext = None, correct_champion_id: int = None) -> ChampionGGMatchup:
+        data = deepcopy(value)
+        result = ChampionGGMatchup.from_data(data)
+        # TODO This is so hacky...
+        result._hack = correct_champion_id
+        return result
+
+    @transform.register(ChampionGGMatchupListData, ChampionGGMatchups)
+    def championgg_matchups_data_to_core(self, value: ChampionGGMatchupListData, context: PipelineContext = None) -> ChampionGGMatchups:
+        data = deepcopy(value)
+        result = ChampionGGMatchups.from_data(id=data.id, role=data.role, patch=data.patch)
+        from collections import Counter
+        ids = Counter()
+        for d in data:
+            ids[d.champ1_id] += 1
+            ids[d.champ2_id] += 1
+        correct_champion_id = ids.most_common(1)[0][0]
+        result._generator = iter([ChampionGGTransformer.championgg_matchup_data_to_core(self, d, correct_champion_id=correct_champion_id) for d in data])
+        for matchup in result:
+            assert matchup.me.champion.id == correct_champion_id
+        return result

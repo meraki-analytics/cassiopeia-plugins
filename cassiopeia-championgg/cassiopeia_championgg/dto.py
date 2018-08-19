@@ -1,9 +1,17 @@
 from cassiopeia.dto.common import DtoObject
 
 
-class ChampionGGListDto(DtoObject):
+class ChampionGGStatsListDto(DtoObject):
     pass
 
 
-class ChampionGGDto(DtoObject):
+class ChampionGGStatsDto(DtoObject):
+    pass
+
+
+class ChampionGGMatchupListDto(DtoObject):
+    pass
+
+
+class ChampionGGMatchupDto(DtoObject):
     pass

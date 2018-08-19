@@ -1,6 +1,7 @@
 from typing import Type, TypeVar, MutableMapping, Any, Iterable
 import os
 import copy
+from collections import defaultdict
 
 from datapipelines import DataSource, PipelineContext, Query, NotFoundError, validate_query
 from merakicommons.ratelimits import FixedWindowRateLimiter, MultiRateLimiter
@@ -8,8 +9,9 @@ from merakicommons.ratelimits import FixedWindowRateLimiter, MultiRateLimiter
 from cassiopeia.datastores.common import HTTPClient, HTTPError
 from cassiopeia.datastores.uniquekeys import convert_region_to_platform
 
-from .dto import ChampionGGListDto, ChampionGGDto
+from .dto import ChampionGGStatsListDto, ChampionGGStatsDto, ChampionGGMatchupListDto
 from .core import ChampionGGStats
+from .form_urls import get_champion_url, get_champion_matchup_url
 
 try:
     import ujson as json
@@ -17,6 +19,8 @@ except ImportError:
     import json
 
 T = TypeVar("T")
+ELOS = ["BRONZE", "SILVER", "GOLD", "PLATINUM", "PLATINUM_DIAMOND_MASTER_CHALLENGER"]
+ROLES = ['TOP', 'JUNGLE', 'MIDDLE', 'SYNERGY', 'ADCSUPPORT', 'DUO_CARRY']
 
 
 class ChampionGG(DataSource):
@@ -53,33 +57,19 @@ class ChampionGG(DataSource):
 
     _validate_get_gg_champion_list_query = Query. \
         has("patch").as_(str).also. \
-        can_have("includedData").with_default(lambda *args, **kwargs: "kda,damage,minions,wards,overallPerformanceScore,goldEarned", supplies_type=str).also. \
-        can_have("elo").with_default(lambda *args, **kwargs: "PLATINUM_DIAMOND_MASTER_CHALLENGER", supplies_type=str).also. \
-        can_have("limit").with_default(lambda *args, **kwargs: 300, supplies_type=int)
+        can_have("elo").with_default(lambda *args, **kwargs: "PLATINUM_DIAMOND_MASTER_CHALLENGER", supplies_type=str)
 
-    @get.register(ChampionGGListDto)
+    @get.register(ChampionGGStatsListDto)
     @validate_query(_validate_get_gg_champion_list_query, convert_region_to_platform)
-    def get_gg_champion_list(self, query: MutableMapping[str, Any], context: PipelineContext = None) -> ChampionGGListDto:
-        elos = ["BRONZE", "SILVER", "GOLD", "PLATINUM", "PLATINUM_DIAMOND_MASTER_CHALLENGER"]
-        if not query["elo"] in elos:
-            raise ValueError("`elo` must be one of {}".format(elos))
+    def get_gg_champion_list(self, query: MutableMapping[str, Any], context: PipelineContext = None) -> ChampionGGStatsListDto:
+        if not query["elo"] in ELOS:
+            raise ValueError("`elo` must be one of {}. Got \"{}\"".format(ELOS, query["elo"]))
 
         try:
-            return self._cached_data[(self.get_gg_champion_list, query["patch"])]
+            return self._cached_data[(self.get_gg_champion_list, (query["patch"], query["elo"]))]
         except KeyError:
-            params = {
-                "api_key": self._key,
-                "limit": query["limit"],
-                "skip": 0,
-                "elo": query["elo"],  # TODO For some reason I can't get this to work properly.
-                #"champData": "kda,damage,minions,wins,wards,positions,normalized,averageGames,overallPerformanceScore,goldEarned,sprees,hashes,wins,maxMins,matchups",
-                "champData": query["includedData"],
-                "sort": "winRate-desc",
-                "abriged": False
-            }
+            url, params = get_champion_url(api_key=self._key, **{k: v for k, v in query.items() if k != "patch"})
             params = "&".join(["{key}={value}".format(key=key, value=value) for key, value in params.items()])
-
-            url = "http://api.champion.gg/v2/champions"
             try:
                 data, response_headers = self._client.get(url, params, rate_limiters=[self._rate_limiter], connection=None, encode_parameters=False)
             except HTTPError as error:
@@ -91,49 +81,103 @@ class ChampionGG(DataSource):
                 datum.pop("_id")
             data = {"data": data}
             data["patch"] = query["patch"]
-            data["includedData"] = query["includedData"]
             data["elo"] = query["elo"]
-            data["limit"] = query["limit"]
-            result = ChampionGGListDto(data)
+            result = ChampionGGStatsListDto(data)
             self._cached_data[(self.get_gg_champion_list, query["patch"])] = result
+            self._cached_data[(self.get_gg_champion_list, (query["patch"], query["elo"]))] = result
             return result
 
     _validate_get_gg_champion_query = Query. \
         has("id").as_(int).also. \
         has("patch").as_(str).also. \
-        can_have("includedData").with_default(lambda *args, **kwargs: "kda,damage,minions,wards,overallPerformanceScore,goldEarned", supplies_type=str).also. \
-        can_have("elo").with_default(lambda *args, **kwargs: "PLATINUM_DIAMOND_MASTER_CHALLENGER", supplies_type=str).also. \
-        can_have("limit").with_default(lambda *args, **kwargs: 300, supplies_type=int)
+        has("role").as_(str).also. \
+        can_have("elo").with_default(lambda *args, **kwargs: "PLATINUM_DIAMOND_MASTER_CHALLENGER", supplies_type=str)
 
-    @get.register(ChampionGGDto)
+    @get.register(ChampionGGStatsDto)
     @validate_query(_validate_get_gg_champion_query, convert_region_to_platform)
-    def get_item(self, query: MutableMapping[str, Any], context: PipelineContext = None) -> ChampionGGDto:
+    def get_one_champion_from_list(self, query: MutableMapping[str, Any], context: PipelineContext = None) -> ChampionGGStatsDto:
         id = query.pop("id")
+        role = query.pop("role")
 
         items_query = copy.deepcopy(query)
         if "id" in items_query:
             items_query.pop("id")
         if "name" in items_query:
             items_query.pop("name")
-        ggs = context[context.Keys.PIPELINE].get(ChampionGGListDto, query=items_query)
+        ggs = context[context.Keys.PIPELINE].get(ChampionGGStatsListDto, query=items_query)
 
-        def find_matching_attribute(list_of_dtos, attrname, attrvalue):
+        def find_matching_attribute(list_of_dtos, attrs):
             for dto in list_of_dtos:
-                if dto.get(attrname, None) == attrvalue:
+                if all(dto.get(attrname, None) == attrvalue for attrname, attrvalue in attrs.items()):
                     return dto
 
-        gg = find_matching_attribute(ggs["data"], "championId", id)
+        gg = find_matching_attribute(ggs["data"], {"championId": id, "role": role})
         if gg is None:
             raise NotFoundError
-        return ChampionGGDto(gg)
+        return ChampionGGStatsDto(gg)
 
+    ############
+    # Matchups #
+    ############
+
+    _validate_get_championgg_matchup_list_query = Query. \
+        has("id").as_(int).also. \
+        has("patch").as_(str).also. \
+        has("role").as_(str).also. \
+        can_have("elo").with_default(lambda *args, **kwargs: "PLATINUM_DIAMOND_MASTER_CHALLENGER", supplies_type=str)
+
+    @get.register(ChampionGGMatchupListDto)
+    @validate_query(_validate_get_championgg_matchup_list_query, convert_region_to_platform)
+    def get_championgg_matchups(self, query: MutableMapping[str, Any], context: PipelineContext = None) -> ChampionGGMatchupListDto:
+        if not query["elo"] in ELOS:
+            raise ValueError("`elo` must be one of {}. Got \"{}\"".format(ELOS, query["elo"]))
+        # Need to to some role name transformations here for consistency between Riot's role names and champion.gg's role names
+        convert_role = {"TOP": "TOP",
+                        "JUNGLE": "JUNGLE",
+                        "MIDDLE": "MIDDLE",
+                        "DUO_SUPPORT": "ADCSUPPORT",
+                        "DUO_CARRY": "DUO_CARRY"
+        }
+        query["role"] = convert_role[query["role"]]
+        if not query["role"] in ROLES:
+            raise ValueError("`role` must be one of {}. Got \"{}\"".format(ROLES, query["role"]))
+
+        try:
+            data = self._cached_data[(self.get_championgg_matchups, (query["id"], query["patch"], query["elo"], query["role"]))]
+        except KeyError:
+            url, params = get_champion_matchup_url(api_key=self._key, **{k: v for k, v in query.items() if k != "patch"})
+            params = "&".join(["{key}={value}".format(key=key, value=value) for key, value in params.items()])
+            try:
+                data, response_headers = self._client.get(url, params, rate_limiters=[self._rate_limiter], connection=None, encode_parameters=False)
+            except HTTPError as error:
+                if error.code == 403:
+                    raise HTTPError(message="Forbidden", code=error.code)
+                raise NotFoundError(str(error)) from error
+
+            for datum in data:
+                datum.pop("_id")
+            data = {"data": data}
+            data["patch"] = query["patch"]
+            data["elo"] = query["elo"]
+            for d in data["data"]:
+                d["elo"] = query["elo"]
+            data["id"] = query["id"]
+            data["role"] = query["role"]
+            self._cached_data[(self.get_championgg_matchups, (query["id"], query["patch"], query["elo"], query["role"]))] = data
+        data = ChampionGGMatchupListDto(data)
+        return data
+
+    ##########
+    # Ghosts #
+    ##########
 
     @staticmethod
     def create_ghost(cls: Type[T], kwargs) -> T:
         return type.__call__(cls, **kwargs)
 
     _validate_get_gg_champion_stats_query = Query. \
-        has("id").as_(int)
+        has("id").as_(int).also. \
+        has("role").as_(str)
 
     @get.register(ChampionGGStats)
     @validate_query(_validate_get_gg_champion_stats_query, convert_region_to_platform)

@@ -3,7 +3,7 @@ from merakicommons.cache import lazy_property
 from cassiopeia.core.common import get_latest_version
 from cassiopeia.core.staticdata.champion import Champion
 from cassiopeia.core.patch import Patch
-from .core import ChampionGGStats
+from .core import ChampionGGChampion
 from .datastores import ChampionGG
 from .transformers import ChampionGGTransformer
 
@@ -11,7 +11,7 @@ __transformers__ = [ChampionGGTransformer()]
 
 # Monkey patch in the Champion.championgg object
 
-def championgg(self) -> ChampionGGStats:
+def championgg(self) -> ChampionGGChampion:
     """The champion.gg data for this champion."""
     latest_version = get_latest_version(self.region, endpoint="champion")
     if self.version != latest_version:
@@ -21,7 +21,7 @@ def championgg(self) -> ChampionGGStats:
         patch = Patch.from_str(patch_name, region=self.region)
     except ValueError:
         patch = Patch(region=self.region, season=None, name=patch_name, start=None, end=None)
-    return ChampionGGStats(id=self.id, patch=patch, region=self.region)
+    return ChampionGGChampion(id=self.id, patch=patch, region=self.region)
 
 championgg = lazy_property(championgg)
 
