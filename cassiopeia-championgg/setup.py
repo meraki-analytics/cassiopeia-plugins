@@ -4,14 +4,14 @@ from setuptools import setup, find_packages
 
 
 install_requires = [
-    "cassiopeia>=3.0.17",
+    "cassiopeia>=3.0.20",
     "datapipelines",
     "merakicommons"
 ]
 
 setup(
     name="cassiopeia-championgg",
-    version="1.0.5",
+    version="1.0.6",
     author="Jason Maldonis; Rob Rua",
     author_email="team@merakianalytics.com",
     url="https://github.com/meraki-analytics/cassiopeia-plugins/tree/master/cassiopeia-championgg",
