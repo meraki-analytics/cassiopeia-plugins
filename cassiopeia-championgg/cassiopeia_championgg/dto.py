@@ -15,3 +15,7 @@ class ChampionGGMatchupListDto(DtoObject):
 
 class ChampionGGMatchupDto(DtoObject):
     pass
+
+
+class MultipleChampionGGStatsDto(DtoObject):
+    pass

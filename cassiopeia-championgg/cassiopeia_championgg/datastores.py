@@ -1,7 +1,6 @@
 from typing import Type, TypeVar, MutableMapping, Any, Iterable
 import os
 import copy
-from collections import defaultdict
 
 from datapipelines import DataSource, PipelineContext, Query, NotFoundError, validate_query
 from merakicommons.ratelimits import FixedWindowRateLimiter, MultiRateLimiter
@@ -9,8 +8,8 @@ from merakicommons.ratelimits import FixedWindowRateLimiter, MultiRateLimiter
 from cassiopeia.datastores.common import HTTPClient, HTTPError
 from cassiopeia.datastores.uniquekeys import convert_region_to_platform
 
-from .dto import ChampionGGStatsListDto, ChampionGGStatsDto, ChampionGGMatchupListDto
-from .core import ChampionGGStats
+from .dto import ChampionGGStatsListDto, ChampionGGStatsDto, ChampionGGMatchupListDto, MultipleChampionGGStatsDto
+from .core import ChampionGGStats, MultipleChampionGGStats
 from .form_urls import get_champion_url, get_champion_matchup_url
 
 try:
@@ -87,14 +86,14 @@ class ChampionGG(DataSource):
             self._cached_data[(self.get_gg_champion_list, (query["patch"], query["elo"]))] = result
             return result
 
-    _validate_get_gg_champion_query = Query. \
+    _validate_get_gg_champion_role_query = Query. \
         has("id").as_(int).also. \
         has("patch").as_(str).also. \
         has("role").as_(str).also. \
         can_have("elo").with_default(lambda *args, **kwargs: "PLATINUM_DIAMOND_MASTER_CHALLENGER", supplies_type=str)
 
     @get.register(ChampionGGStatsDto)
-    @validate_query(_validate_get_gg_champion_query, convert_region_to_platform)
+    @validate_query(_validate_get_gg_champion_role_query, convert_region_to_platform)
     def get_one_champion_from_list(self, query: MutableMapping[str, Any], context: PipelineContext = None) -> ChampionGGStatsDto:
         id = query.pop("id")
         role = query.pop("role")
@@ -115,6 +114,38 @@ class ChampionGG(DataSource):
         if gg is None:
             raise NotFoundError
         return ChampionGGStatsDto(gg)
+
+    _validate_get_gg_champion_query = Query. \
+        has("id").as_(int).also. \
+        has("patch").as_(str).also. \
+        can_have("elo").with_default(lambda *args, **kwargs: "PLATINUM_DIAMOND_MASTER_CHALLENGER", supplies_type=str)
+
+    @get.register(MultipleChampionGGStatsDto)
+    @validate_query(_validate_get_gg_champion_query, convert_region_to_platform)
+    def get_one_champion_from_list(self, query: MutableMapping[str, Any], context: PipelineContext = None) -> MultipleChampionGGStatsDto:
+        id = query.pop("id")
+
+        items_query = copy.deepcopy(query)
+        if "id" in items_query:
+            items_query.pop("id")
+        if "name" in items_query:
+            items_query.pop("name")
+        ggs = context[context.Keys.PIPELINE].get(ChampionGGStatsListDto, query=items_query)
+
+        def find_matching_attribute(list_of_dtos, attrs):
+            dtos = []
+            for dto in list_of_dtos:
+                if all(dto.get(attrname, None) == attrvalue for attrname, attrvalue in attrs.items()):
+                    dtos.append(dto)
+            if dtos:
+                return dtos
+            else:
+                return None
+
+        gg = find_matching_attribute(ggs["data"], {"championId": id})
+        if gg is None:
+            raise NotFoundError
+        return MultipleChampionGGStatsDto({"data": gg, "championId": id})
 
     ############
     # Matchups #
@@ -175,12 +206,21 @@ class ChampionGG(DataSource):
     def create_ghost(cls: Type[T], kwargs) -> T:
         return type.__call__(cls, **kwargs)
 
-    _validate_get_gg_champion_stats_query = Query. \
-        has("id").as_(int).also. \
-        has("role").as_(str)
+    #_validate_get_gg_champion_role_stats_query = Query. \
+    #    has("id").as_(int).also. \
+    #    has("role").as_(str)
 
-    @get.register(ChampionGGStats)
+    #@get.register(ChampionGGStats)
+    #@validate_query(_validate_get_gg_champion_role_stats_query, convert_region_to_platform)
+    #def get_champion(self, query: MutableMapping[str, Any], context: PipelineContext = None) -> ChampionGGStats:
+    #    query["region"] = query.pop("platform").region
+    #    return ChampionGG.create_ghost(ChampionGGStats, query)
+
+    _validate_get_gg_champion_stats_query = Query. \
+        has("id").as_(int)
+
+    @get.register(MultipleChampionGGStats)
     @validate_query(_validate_get_gg_champion_stats_query, convert_region_to_platform)
-    def get_champion(self, query: MutableMapping[str, Any], context: PipelineContext = None) -> ChampionGGStats:
+    def get_champion(self, query: MutableMapping[str, Any], context: PipelineContext = None) -> MultipleChampionGGStats:
         query["region"] = query.pop("platform").region
-        return ChampionGG.create_ghost(ChampionGGStats, query)
+        return ChampionGG.create_ghost(MultipleChampionGGStats, query)

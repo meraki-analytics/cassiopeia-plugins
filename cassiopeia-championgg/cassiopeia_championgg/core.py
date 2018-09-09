@@ -11,7 +11,7 @@ from cassiopeia.data import Region, Role, Tier
 from cassiopeia.core.common import CoreData, CassiopeiaGhost, CoreDataList, CassiopeiaLazyList, CassiopeiaObject
 from cassiopeia.core.patch import Patch
 
-from .dto import ChampionGGStatsDto, ChampionGGStatsListDto, ChampionGGMatchupDto, ChampionGGMatchupListDto
+from .dto import ChampionGGStatsDto, ChampionGGStatsListDto, ChampionGGMatchupDto, ChampionGGMatchupListDto, MultipleChampionGGStatsDto
 
 
 class ChampionGGStatsListData(CoreDataList):
@@ -41,6 +41,11 @@ class ChampionGGStatsData(CoreData):
             self.elo = kwargs.pop("elo").split(",")
         super().__call__(**kwargs)
         return self
+
+
+class MultipleChampionGGStatsData(CoreDataList):
+    _dto_type = MultipleChampionGGStatsDto
+    _renamed = {}
 
 
 class ChampionGGMatchupData(CoreData):
@@ -173,11 +178,9 @@ class ChampionGGMatchup(CassiopeiaGhost):
 class ChampionGGMatchups(CassiopeiaLazyList):
     _data_types = {ChampionGGMatchupListData}
 
-    def __init__(self, *, id: int, role: Union[Role, str], patch: Union[Patch, str], elo: Set[str] = None, region: [Region, str] = None):
+    def __init__(self, *, id: int, role: Union[Role, str], patch: Union[Patch, str], elo: Set[str] = None):
         if not isinstance(role, Role):
             role = Role(role)
-        if region is not None and not isinstance(region, Region):
-            region = Region(region)
         kwargs = {}
         CassiopeiaObject.__init__(self, **kwargs)
         SearchableLazyList.__init__(self, iter([]))
@@ -193,28 +196,153 @@ class ChampionGGMatchups(CassiopeiaLazyList):
         self._role = role
         self._elo = elo
         self._id = id
-        self._region = region
 
     @classmethod
-    def __get_query_from_kwargs__(cls, *, id: int, role: Union[Role, str], patch: Union[Patch, str], elo: Set[str] = None, region: [Region, str] = None) -> dict:
+    def __get_query_from_kwargs__(cls, *, id: int, role: Union[Role, str], patch: Union[Patch, str], elo: Set[str] = None) -> dict:
         if isinstance(role, Role):
             role = role.value
         if isinstance(patch, Patch):
             patch = patch.name
         if isinstance(elo, list):
             elo = "_".join(elo)
-        if isinstance(region, Region):
-            region = region.value
         query = {"role": role, "id": id, "patch": patch, "elo": elo}
         return query
 
 
-class ChampionGGStats(CassiopeiaGhost):
+class ChampionGGStats(CassiopeiaObject):
     _data_types = {ChampionGGStatsData}
 
-    def __init__(self, *, id: int, role: Union[Role, str], patch: Union[Patch, str], elo: Set[str] = None, region: Union[Region, str] = None):
-        if not isinstance(role, Role):
-            role = Role(role)
+    def __init__(self, **kwargs):
+        if kwargs:
+            role = kwargs["role"]
+            region = kwargs["region"]
+            elo = kwargs["elo"]
+            patch = kwargs["patch"]
+            if not isinstance(role, Role):
+                role = Role(role)
+            if region is None:
+                region = configuration.settings.default_region
+            if region is not None and not isinstance(region, Region):
+                region = Region(region)
+            if elo is None:
+                elo = "PLATINUM_DIAMOND_MASTER_CHALLENGER"
+            elif isinstance(elo, str):
+                if "_" in elo:
+                    elo = elo.split("_")
+                elif "," in elo:
+                    elo = elo.split(",")
+            kwargs = {"id": id}
+            super().__init__(**kwargs)
+            self._region = region
+            self._patch = patch
+            self._role = role
+            self._elo = elo
+        else:
+            super().__init__()
+
+    def __get_query__(self):
+        return {"id": self.id, "patch": self.patch.name, "elo": "_".join(self.elo), "role": self.role.value}
+
+    @property
+    def elo(self) -> Set[str]:
+        return self._data[ChampionGGStatsData].elo
+
+    @property
+    def patch(self) -> Patch:
+        return self._data[ChampionGGStatsData].patch
+
+    @property
+    def role(self) -> Role:
+        return Role(self._data[ChampionGGStatsData].role)
+
+    @property
+    def id(self) -> int:
+        return self._data[ChampionGGStatsData].id
+
+    @property
+    def win_rate(self) -> SearchableDictionary:
+        return self._data[ChampionGGStatsData].winRate
+
+    @property
+    def play_rate(self) -> SearchableDictionary:
+        return self._data[ChampionGGStatsData].playRate
+
+    @property
+    def play_rate_by_role(self) -> SearchableDictionary:
+        return self._data[ChampionGGStatsData].playRateByRole
+
+    @property
+    def ban_rate(self) -> SearchableDictionary:
+        return self._data[ChampionGGStatsData].banRate
+
+    @property
+    def games_played(self) -> SearchableDictionary:
+        return self._data[ChampionGGStatsData].gamesPlayed
+
+    @property
+    def damage_composition(self) -> SearchableDictionary:
+        return self._data[ChampionGGStatsData].damageComposition
+
+    @property
+    def kills(self) -> SearchableDictionary:
+        return self._data[ChampionGGStatsData].kills
+
+    @property
+    def total_damage_taken(self) -> SearchableDictionary:
+        return self._data[ChampionGGStatsData].totalDamageTaken
+
+    @property
+    def wards_killed(self) -> SearchableDictionary:
+        return self._data[ChampionGGStatsData].wardsKilled
+
+    @property
+    def neutral_minions_killed_in_team_jungle(self) -> SearchableDictionary:
+        return self._data[ChampionGGStatsData].neutralMinionsKilledInTeamJungle
+
+    @property
+    def assists(self) -> SearchableDictionary:
+        return self._data[ChampionGGStatsData].assists
+
+    @property
+    def performance_score(self) -> SearchableDictionary:
+        return self._data[ChampionGGStatsData].performanceScore
+
+    @property
+    def neutral_minions_killed_in_enemy_jungle(self) -> SearchableDictionary:
+        return self._data[ChampionGGStatsData].neutralMinionsKilledInEnemyJungle
+
+    @property
+    def gold_earned(self) -> SearchableDictionary:
+        return self._data[ChampionGGStatsData].goldEarned
+
+    @property
+    def deaths(self) -> SearchableDictionary:
+        return self._data[ChampionGGStatsData].deaths
+
+    @property
+    def minions_killed(self) -> SearchableDictionary:
+        return self._data[ChampionGGStatsData].minionsKilled
+
+    @property
+    def total_healed(self) -> SearchableDictionary:
+        return self._data[ChampionGGStatsData].totalHealed
+
+    @property
+    def championgg_metadata(self) -> dict:
+        return {
+            "elo": [Tier(tier) for tier in self._data[ChampionGGStatsData].elo],
+            "patch": self.patch
+        }
+
+    @lazy_property
+    def matchups(self) -> list:
+        return ChampionGGMatchups(id=self.id, role=self.role, patch=self.patch, elo=self.elo)
+
+
+class MultipleChampionGGStats(CassiopeiaGhost, list):
+    """Contains data for one champion for multiple roles."""
+    _data_types = {MultipleChampionGGStatsData}
+    def __init__(self, *, id: int, patch: Union[Patch, str], elo: Set[str] = None, region: Union[Region, str] = None):
         if region is None:
             region = configuration.settings.default_region
         if region is not None and not isinstance(region, Region):
@@ -230,11 +358,19 @@ class ChampionGGStats(CassiopeiaGhost):
         super().__init__(**kwargs)
         self._region = region
         self._patch = patch
-        self._role = role
         self._elo = elo
+        list.__init__(self, [])
+
+    @classmethod
+    def from_data(cls, data, id: int, patch: Union[Patch, str], elo: Set[str] = None, region: Union[Region, str] = None):
+        self = cls.__new__(cls)
+        cls.__init__(self, id=id, patch=patch, elo=elo, region=region)
+        for d in data:
+            self.append(d)
+        return self
 
     def __get_query__(self):
-        return {"id": self.id, "patch": self.patch.name, "elo": "_".join(self.elo), "role": self.role.value}
+        return {"id": self.id, "patch": self.patch.name, "elo": "_".join(self.elo)}
 
     @property
     def region(self) -> Region:
@@ -248,112 +384,10 @@ class ChampionGGStats(CassiopeiaGhost):
     def patch(self) -> Patch:
         return self._patch
 
-    @property
-    def role(self) -> Role:
-        return self._role
-
-    @CassiopeiaGhost.property(ChampionGGStatsData)
+    @CassiopeiaGhost.property(MultipleChampionGGStatsData)
     @ghost_load_on(AttributeError)
     def id(self) -> int:
-        return self._data[ChampionGGStatsData].id
-
-    @CassiopeiaGhost.property(ChampionGGStatsData)
-    @ghost_load_on(AttributeError)
-    def win_rate(self) -> SearchableDictionary:
-        return self._data[ChampionGGStatsData].winRate
-
-    @CassiopeiaGhost.property(ChampionGGStatsData)
-    @ghost_load_on(AttributeError)
-    def play_rate(self) -> SearchableDictionary:
-        return self._data[ChampionGGStatsData].playRate
-
-    @CassiopeiaGhost.property(ChampionGGStatsData)
-    @ghost_load_on(AttributeError)
-    def play_rate_by_role(self) -> SearchableDictionary:
-        return self._data[ChampionGGStatsData].playRateByRole
-
-    @CassiopeiaGhost.property(ChampionGGStatsData)
-    @ghost_load_on(AttributeError)
-    def ban_rate(self) -> SearchableDictionary:
-        return self._data[ChampionGGStatsData].banRate
-
-    @CassiopeiaGhost.property(ChampionGGStatsData)
-    @ghost_load_on(AttributeError)
-    def games_played(self) -> SearchableDictionary:
-        return self._data[ChampionGGStatsData].gamesPlayed
-
-    @CassiopeiaGhost.property(ChampionGGStatsData)
-    @ghost_load_on(AttributeError)
-    def damage_composition(self) -> SearchableDictionary:
-        return self._data[ChampionGGStatsData].damageComposition
-
-    @CassiopeiaGhost.property(ChampionGGStatsData)
-    @ghost_load_on(AttributeError)
-    def kills(self) -> SearchableDictionary:
-        return self._data[ChampionGGStatsData].kills
-
-    @CassiopeiaGhost.property(ChampionGGStatsData)
-    @ghost_load_on(AttributeError)
-    def total_damage_taken(self) -> SearchableDictionary:
-        return self._data[ChampionGGStatsData].totalDamageTaken
-
-    @CassiopeiaGhost.property(ChampionGGStatsData)
-    @ghost_load_on(AttributeError)
-    def wards_killed(self) -> SearchableDictionary:
-        print(self._data[ChampionGGStatsData].to_dict().keys())
-        return self._data[ChampionGGStatsData].wardsKilled
-
-    @CassiopeiaGhost.property(ChampionGGStatsData)
-    @ghost_load_on(AttributeError)
-    def neutral_minions_killed_in_team_jungle(self) -> SearchableDictionary:
-        return self._data[ChampionGGStatsData].neutralMinionsKilledInTeamJungle
-
-    @CassiopeiaGhost.property(ChampionGGStatsData)
-    @ghost_load_on(AttributeError)
-    def assists(self) -> SearchableDictionary:
-        return self._data[ChampionGGStatsData].assists
-
-    @CassiopeiaGhost.property(ChampionGGStatsData)
-    @ghost_load_on(AttributeError)
-    def performance_score(self) -> SearchableDictionary:
-        return self._data[ChampionGGStatsData].performanceScore
-
-    @CassiopeiaGhost.property(ChampionGGStatsData)
-    @ghost_load_on(AttributeError)
-    def neutral_minions_killed_in_enemy_jungle(self) -> SearchableDictionary:
-        return self._data[ChampionGGStatsData].neutralMinionsKilledInEnemyJungle
-
-    @CassiopeiaGhost.property(ChampionGGStatsData)
-    @ghost_load_on(AttributeError)
-    def gold_earned(self) -> SearchableDictionary:
-        return self._data[ChampionGGStatsData].goldEarned
-
-    @CassiopeiaGhost.property(ChampionGGStatsData)
-    @ghost_load_on(AttributeError)
-    def deaths(self) -> SearchableDictionary:
-        return self._data[ChampionGGStatsData].deaths
-
-    @CassiopeiaGhost.property(ChampionGGStatsData)
-    @ghost_load_on(AttributeError)
-    def minions_killed(self) -> SearchableDictionary:
-        return self._data[ChampionGGStatsData].minionsKilled
-
-    @CassiopeiaGhost.property(ChampionGGStatsData)
-    @ghost_load_on(AttributeError)
-    def total_healed(self) -> SearchableDictionary:
-        return self._data[ChampionGGStatsData].totalHealed
-
-    @CassiopeiaGhost.property(ChampionGGStatsData)
-    @ghost_load_on(AttributeError)
-    def championgg_metadata(self) -> dict:
-        return {
-            "elo": [Tier(tier) for tier in self._data[ChampionGGStatsData].elo],
-            "patch": self.patch
-        }
-
-    @lazy_property
-    def matchups(self) -> list:
-        return ChampionGGMatchups(id=self.id, region=self.region, role=self.role, patch=self.patch, elo=self.elo)
+        return self._data[MultipleChampionGGStatsData].id
 
 
 class ChampionGGChampion(object):
@@ -372,7 +406,7 @@ class ChampionGGChampion(object):
         if isinstance(patch, str):
             patch = Patch.from_str(patch, region=region)
         self._patch = patch
-        self.roles = {}
+        self._roles = {}
 
     def __get_query__(self):
         return {"id": self.id, "patch": self.patch.name, "elo": "_".join(self.elo)}
@@ -393,16 +427,19 @@ class ChampionGGChampion(object):
     def id(self) -> int:
         return self._id
 
-    def __getitem__(self, role):
-        if isinstance(role, Role):
-            role = role.value
-        if role not in self.roles:
-            self.roles[role] = ChampionGGStats(id=self.id, patch=self.patch, elo=self.elo, region=self.region, role=role).load(load_groups={ChampionGGStatsData})
+    def __getitem__(self, role: Union[Role, str]):
+        if not isinstance(role, Role):
+            role = Role(role)
         return self.roles[role]
 
     def load(self):
-        for role in Role:
-            try:
-                self[role]
-            except NotFoundError:
-                continue
+        role_data = MultipleChampionGGStats(id=self.id, patch=self.patch, elo=self.elo, region=self.region).load(load_groups={MultipleChampionGGStatsData})
+        for data in role_data._data[MultipleChampionGGStatsData]:
+            stats = ChampionGGStats.from_data(data=data)
+            self._roles[stats.role] = stats
+
+    @property
+    def roles(self):
+        if not self._roles:
+            self.load()
+        return self._roles
