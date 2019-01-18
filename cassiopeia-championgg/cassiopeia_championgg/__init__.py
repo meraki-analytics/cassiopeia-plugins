@@ -1,11 +1,13 @@
 from merakicommons.cache import lazy_property
 
+import cassiopeia
 from cassiopeia.core.common import get_latest_version
 from cassiopeia.core.staticdata.champion import Champion
 from cassiopeia.core.patch import Patch
 from .core import ChampionGGChampion
 from .datastores import ChampionGG
 from .transformers import ChampionGGTransformer
+from .data import Role
 
 __transformers__ = [ChampionGGTransformer()]
 
@@ -26,3 +28,6 @@ def championgg(self) -> ChampionGGChampion:
 championgg = lazy_property(championgg)
 
 Champion.championgg = championgg
+
+# Monkey patch in the Role as well
+cassiopeia.RoleGG = Role

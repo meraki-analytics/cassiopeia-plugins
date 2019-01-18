@@ -1,17 +1,17 @@
 from typing import Set, Union
+from enum import Enum
 
 from merakicommons.ghost import ghost_load_on
 from merakicommons.container import SearchableDictionary, SearchableLazyList, searchable
 from merakicommons.cache import lazy_property
 
-from datapipelines import NotFoundError
-
 from cassiopeia import configuration
-from cassiopeia.data import Region, Role, Tier
+from cassiopeia.data import Region, Tier
 from cassiopeia.core.common import CoreData, CassiopeiaGhost, CoreDataList, CassiopeiaLazyList, CassiopeiaObject
 from cassiopeia.core.patch import Patch
 
 from .dto import ChampionGGStatsDto, ChampionGGStatsListDto, ChampionGGMatchupDto, ChampionGGMatchupListDto, MultipleChampionGGStatsDto
+from .data import Role
 
 
 class ChampionGGStatsListData(CoreDataList):
@@ -428,7 +428,7 @@ class ChampionGGChampion(object):
         return self._id
 
     def __getitem__(self, role: Union[Role, str]):
-        if not isinstance(role, Role):
+        if not isinstance(role, Enum):
             role = Role(role)
         return self.roles[role]
 
