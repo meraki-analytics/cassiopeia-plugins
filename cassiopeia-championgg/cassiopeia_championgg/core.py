@@ -75,40 +75,164 @@ class ChampionGGChampionData(CoreData):
 
 class ChampionGGMatchupStats:
     def __init__(self, data, id):
-        self.id = id
-        self.twenty_to_thirty = data.get('twentyToThirty', None)
-        self.wins = data.get('wins', None)
-        self.winrate = data.get('winrate', None)
-        self.kills = data.get('kills', None)
-        self.neutral_minions_killed_team_jungle = data.get('neutralMinionsKilledTeamJungle', None)
-        self.total_damage_dealt_to_champions = data.get('totalDamageDealtToChampions', None)
-        self.role = data.get('role', None)
-        self.assists = data.get('assists', None)
-        self.ten_to_twenty = data.get('tenToTwenty', None)
-        self.thirty_to_end = data.get('thirtyToEnd', None)
-        self.zero_to_ten = data.get('zeroToTen', None)
-        self.gold_earned = data.get('goldEarned', None)
-        self.killing_sprees = data.get('killingSprees', None)
-        self.minions_killed = data.get('minionsKilled', None)
-        self.deaths = data.get('deaths', None)
-        self.weighted_score = data.get('weighedScore', None)
-        self.delta_twenty_to_thirty = data.get('deltatwentyToThirty', None)
-        self.delta_wins = data.get('deltawins', None)
-        self.delta_winrate = data.get('deltawinrate', None)
-        self.delta_kills = data.get('deltakills', None)
-        self.delta_neutral_minions_killed_team_jungle = data.get('deltaneutralMinionsKilledTeamJungle', None)
-        self.delta_total_damage_dealt_to_champions = data.get('deltatotalDamageDealtToChampions', None)
-        self.delta_assists = data.get('deltaassists', None)
-        self.delta_ten_to_twenty = data.get('deltatenToTwenty', None)
-        self.delta_thirty_to_end = data.get('deltathirtyToEnd', None)
-        self.delta_zero_to_ten = data.get('deltazeroToTen', None)
-        self.delta_gold_earned = data.get('deltagoldEarned', None)
-        self.delta_killing_sprees = data.get('deltakillingSprees', None)
-        self.delta_minions_killed = data.get('deltaminionsKilled', None)
-        self.delta_deaths = data.get('deltadeaths', None)
-        self.delta_weighted_score = data.get('deltaweighedScore', None)
+        self._id = id
+        self._twenty_to_thirty = data.get('twentyToThirty', None)
+        self._wins = data.get('wins', None)
+        self._winrate = data.get('winrate', None)
+        self._kills = data.get('kills', None)
+        self._neutral_minions_killed_team_jungle = data.get('neutralMinionsKilledTeamJungle', None)
+        self._total_damage_dealt_to_champions = data.get('totalDamageDealtToChampions', None)
+        self._role = data.get('role', None)
+        self._assists = data.get('assists', None)
+        self._ten_to_twenty = data.get('tenToTwenty', None)
+        self._thirty_to_end = data.get('thirtyToEnd', None)
+        self._zero_to_ten = data.get('zeroToTen', None)
+        self._gold_earned = data.get('goldEarned', None)
+        self._killing_sprees = data.get('killingSprees', None)
+        self._minions_killed = data.get('minionsKilled', None)
+        self._deaths = data.get('deaths', None)
+        self._weighted_score = data.get('weighedScore', None)
+        self._delta_twenty_to_thirty = data.get('deltatwentyToThirty', None)
+        self._delta_wins = data.get('deltawins', None)
+        self._delta_winrate = data.get('deltawinrate', None)
+        self._delta_kills = data.get('deltakills', None)
+        self._delta_neutral_minions_killed_team_jungle = data.get('deltaneutralMinionsKilledTeamJungle', None)
+        self._delta_total_damage_dealt_to_champions = data.get('deltatotalDamageDealtToChampions', None)
+        self._delta_assists = data.get('deltaassists', None)
+        self._delta_ten_to_twenty = data.get('deltatenToTwenty', None)
+        self._delta_thirty_to_end = data.get('deltathirtyToEnd', None)
+        self._delta_zero_to_ten = data.get('deltazeroToTen', None)
+        self._delta_gold_earned = data.get('deltagoldEarned', None)
+        self._delta_killing_sprees = data.get('deltakillingSprees', None)
+        self._delta_minions_killed = data.get('deltaminionsKilled', None)
+        self._delta_deaths = data.get('deltadeaths', None)
+        self._delta_weighted_score = data.get('deltaweighedScore', None)
         from cassiopeia import Champion
-        self.champion = Champion(id=self.id, region="NA")  # TODO give correct version
+        self._champion = Champion(id=self.id, region="NA")  # TODO give correct version
+
+    @property
+    def id(self) -> int:
+        return self._id
+
+    @property
+    def twenty_to_thirty(self) -> int:
+        return self._twenty_to_thirty
+
+    @property
+    def wins(self) -> int:
+        return self._wins
+
+    @property
+    def winrate(self) -> float:
+        return self._winrate
+
+    @property
+    def kills(self) -> int:
+        return self._kills
+
+    @property
+    def neutral_minions_killed_team_jungle(self) -> int:
+        return self._neutral_minions_killed_team_jungle
+
+    @property
+    def total_damage_dealt_to_champions(self) -> int:
+        return self._total_damage_dealt_to_champions
+
+    @property
+    def role(self) -> Role:
+        return self._role
+
+    @property
+    def assists(self) -> int:
+        return self._assists
+
+    @property
+    def thirty_to_end(self) -> int:
+        return self._thirty_to_end
+
+    @property
+    def zero_to_ten(self) -> int:
+        return self._zero_to_ten
+
+    @property
+    def gold_earned(self) -> int:
+        return self._gold_earned
+
+    @property
+    def killing_sprees(self) -> int:
+        return self._killing_sprees
+
+    @property
+    def minions_killed(self) -> int:
+        return self._minions_killed
+
+    @property
+    def deaths(self) -> int:
+        return self._deaths
+
+    @property
+    def weighted_score(self) -> int:
+        return self._weighted_score
+
+    @property
+    def delta_twenty_to_thirty(self) -> int:
+        return self._delta_twenty_to_thirty
+
+    @property
+    def delta_wins(self) -> int:
+        return self._delta_wins
+
+    @property
+    def delta_kills(self) -> int:
+        return self._delta_kills
+
+    @property
+    def delta_neutral_minions_killed_team_jungle(self) -> int:
+        return self._delta_neutral_minions_killed_team_jungle
+
+    @property
+    def delta_total_damage_dealt_to_champions(self) -> int:
+        return self._delta_total_damage_dealt_to_champions
+
+    @property
+    def delta_assists(self) -> int:
+        return self._delta_assists
+
+    @property
+    def delta_ten_to_twenty(self) -> int:
+        return self._delta_ten_to_twenty
+
+    @property
+    def delta_thirty_to_end(self) -> int:
+        return self._delta_thirty_to_end
+
+    @property
+    def delta_zero_to_ten(self) -> int:
+        return self._delta_zero_to_ten
+
+    @property
+    def delta_gold_earned(self) -> int:
+        return self._delta_gold_earned
+
+    @property
+    def delta_killing_sprees(self) -> int:
+        return self._delta_killing_sprees
+
+    @property
+    def delta_minions_killed(self) -> int:
+        return self._delta_minions_killed
+
+    @property
+    def delta_deaths(self) -> int:
+        return self._delta_deaths
+
+    @property
+    def delta_weighted_score(self) -> int:
+        return self._delta_weighted_score
+
+    @property
+    def champion(self) -> "Champion":
+        return self._champion
 
 
 @searchable({str: ["enemy.champion"]})
