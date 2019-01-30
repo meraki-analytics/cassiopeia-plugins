@@ -8,7 +8,7 @@ def get_site_information_url(api_key: str, elo: str = 'PLATINUM_DIAMOND_MASTER_C
     elo = elo.upper()
     if elo not in ELOS:
         raise ValueError(f"`elo` must be one of: {', '.join(ELOS)}. Got {elo}.")
-    url = f"http://api.champion.gg/v2/general"
+    url = f"https://api.champion.gg/v2/general"
     params = {
         'elo': elo,
         'api_key': api_key
@@ -20,7 +20,7 @@ def get_overall_champion_url(api_key: str, elo: str = 'PLATINUM_DIAMOND_MASTER_C
     elo = elo.upper()
     if elo not in ELOS:
         raise ValueError(f"`elo` must be one of: {', '.join(ELOS)}. Got {elo}.")
-    url = f"http://api.champion.gg/v2/overall"
+    url = f"https://api.champion.gg/v2/overall"
     params = {
         'elo': elo,
         'api_key': api_key
@@ -90,9 +90,9 @@ def get_champion_url(api_key: str,
     #if grouped_wins: champion_data.add('groupedWins')
 
     if champion is None:
-        url = f"http://api.champion.gg/v2/champions"
+        url = f"https://api.champion.gg/v2/champions"
     else:
-        url = f"http://api.champion.gg/v2/champions/{champion}"
+        url = f"https://api.champion.gg/v2/champions/{champion}"
     params = {
         'elo': elo,
         'champData': ','.join(champion_data),
@@ -116,10 +116,10 @@ def get_champion_matchup_url(api_key: str, id: int, role: Optional[str] = None, 
         'api_key': api_key
     }
     if role is None:
-        url = f"http://api.champion.gg/v2/champions/{id}/matchups"
+        url = f"https://api.champion.gg/v2/champions/{id}/matchups"
     else:
         role = role.upper()
         if role not in ['TOP', 'JUNGLE', 'MIDDLE', 'SYNERGY', 'ADCSUPPORT', 'DUO_CARRY']:
             raise ValueError("`role` must be one of: TOP, JUNGLE, MIDDLE, SYNERGY, ADCSUPPORT, DUO_CARRY")
-        url = f"http://api.champion.gg/v2/champions/{id}/{role}/matchups"
+        url = f"https://api.champion.gg/v2/champions/{id}/{role}/matchups"
     return url, params

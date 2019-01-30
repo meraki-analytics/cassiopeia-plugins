@@ -1,6 +1,7 @@
 from typing import Type, TypeVar, MutableMapping, Any, Iterable
 import os
 import copy
+import pycurl
 
 from datapipelines import DataSource, PipelineContext, Query, NotFoundError, validate_query
 from merakicommons.ratelimits import FixedWindowRateLimiter, MultiRateLimiter
@@ -70,7 +71,9 @@ class ChampionGG(DataSource):
             url, params = get_champion_url(api_key=self._key, **{k: v for k, v in query.items() if k != "patch"})
             params = "&".join(["{key}={value}".format(key=key, value=value) for key, value in params.items()])
             try:
-                data, response_headers = self._client.get(url, params, rate_limiters=[self._rate_limiter], connection=None, encode_parameters=False)
+                c = pycurl.Curl()
+                c.setopt(c.USERAGENT, "Mozilla/5.0")
+                data, response_headers = self._client.get(url, params, rate_limiters=[self._rate_limiter], connection=c, encode_parameters=False)
             except HTTPError as error:
                 if error.code == 403:
                     raise HTTPError(message="Forbidden", code=error.code)
